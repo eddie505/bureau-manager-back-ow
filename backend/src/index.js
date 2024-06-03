@@ -7,6 +7,7 @@ import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import fontkit from "@pdf-lib/fontkit";
+import { fileURLToPath } from "url";
 import {
   SECRET_KEY,
   MYSQLHOST,
@@ -24,6 +25,7 @@ import jwt from "jsonwebtoken";
 
 import bcrypt from "bcrypt";
 const saltRounds = 10;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 //const CryptoJS = require("crypto-js");
 //const secretKeyAES = process.env.SECRET_KEY;
