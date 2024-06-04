@@ -17,11 +17,11 @@ import {
   MYSQLPORT,
   PORT,
 } from "./config.js";
+import jwt from "jsonwebtoken";
 
 const app = express();
 // Permitir solicitudes CORS desde cualquier origen
 app.use(cors());
-import jwt from "jsonwebtoken";
 
 import bcrypt from "bcrypt";
 const saltRounds = 10;
@@ -627,6 +627,21 @@ app.post(`/api/registrarInfoPagosCompleto`, (req, res) => {
   });
 });
 
+app.post("/api/registrarCuotas", (req, res) => {
+  console.log(req.body);
+  const { id_condominio, id_edificio, cuota_base, cuota_extra } = req.body;
+  const sql =
+    "INSERT INTO admin_cuotas (id_condominio, id_edificio, cuota_base, cuota_extra) VALUES (?, ?, ?, ?)";
+  const values = [id_condominio, id_edificio, cuota_base, cuota_extra];
+  connection.query(sql, values, (error) => {
+    if (error) {
+      console.log(error);
+      res.status(500).send("Error al registrar las cuotas");
+    }
+    res.status(200).send("Registro exitoso de cuotas");
+  });
+});
+
 app.post(`/api/enviarRecibosCorreoElectronico`, (req, res) => {
   console.log("-------------------------------");
   console.log(req.body);
@@ -738,9 +753,11 @@ app.post(`/api/enviarRecibosCorreoElectronico`, (req, res) => {
 
                   transporter.sendMail(mailOptions, (error, info) => {
                     if (error) {
+                      res.status(500).send("Error al enviar el correo");
                       console.error("Error al enviar el correo:", error);
                     } else {
-                      console.log("Correo enviado:", info.response);
+                      res.status(200).send("Correo enviado exitosamente");
+                      console.log("Correo enviado exitosamente:", info);
                     }
                   });
                 }
@@ -753,6 +770,21 @@ app.post(`/api/enviarRecibosCorreoElectronico`, (req, res) => {
       }
     });
   }
+});
+
+app.post("/api/actualizarCuotas", (req, res) => {
+  console.log(req.body);
+  const { cuota_base, cuota_extra, id_edificio } = req.body;
+  const sql =
+    "UPDATE admin_cuotas SET cuota_base = ?, cuota_extra = ? WHERE id_edificio = ?";
+  const values = [cuota_base, cuota_extra, id_edificio];
+  connection.query(sql, values, (error) => {
+    if (error) {
+      console.error(error);
+      res.status(500).send("Error al actualizar las cuotas");
+    }
+    res.status(200).send("Cuotas actualizadas con éxito");
+  });
 });
 
 app.post(`/api/generarPDFMasivo`, async (req, res) => {
@@ -1183,6 +1215,19 @@ app.get(`/api/getInfoPagos/:id_administrador`, (req, res) => {
     if (error) {
       console.error(error);
       res.status(500).send("Error al obtener los registros de la tabla");
+    } else {
+      res.json(results);
+    }
+  });
+});
+
+app.get("/api/obtenerCuota/:id_edificio", (req, res) => {
+  const id_edificio = parseInt(req.params.id_edificio);
+  const sql = "SELECT * FROM admin_cuotas WHERE id_edificio = ?";
+  connection.query(sql, [id_edificio], (error, results) => {
+    if (error) {
+      console.error(error);
+      res.status(500).send("Error al obtener las cuotas");
     } else {
       res.json(results);
     }
