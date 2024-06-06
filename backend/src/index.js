@@ -629,7 +629,10 @@ app.post(`/api/registrarInfoPagosCompleto`, (req, res) => {
 
 app.post("/api/registrarCuotas", (req, res) => {
   console.log(req.body);
-  const { id_condominio, id_edificio, cuota_base, cuota_extra } = req.body;
+  let { id_condominio, id_edificio, cuota_base, cuota_extra } = req.body;
+  if (cuota_extra === "") {
+    cuota_extra = null;
+  }
   const sql =
     "INSERT INTO admin_cuotas (id_condominio, id_edificio, cuota_base, cuota_extra) VALUES (?, ?, ?, ?)";
   const values = [id_condominio, id_edificio, cuota_base, cuota_extra];
@@ -774,7 +777,10 @@ app.post(`/api/enviarRecibosCorreoElectronico`, (req, res) => {
 
 app.post("/api/actualizarCuotas", (req, res) => {
   console.log(req.body);
-  const { cuota_base, cuota_extra, id_edificio } = req.body;
+  let { cuota_base, cuota_extra, id_edificio } = req.body;
+  if (cuota_extra === "") {
+    cuota_extra = null;
+  }
   const sql =
     "UPDATE admin_cuotas SET cuota_base = ?, cuota_extra = ? WHERE id_edificio = ?";
   const values = [cuota_base, cuota_extra, id_edificio];
@@ -1143,6 +1149,75 @@ app.post(`/api/getInquilinosbyDepartamento`, (req, res) => {
   );
 });
 
+app.get(`/api/getInquilinosByCode`, (req, res) => {
+  const { codigo_inquilino } = req.query;
+  const query = `
+    SELECT 
+      i.id_inquilino, 
+      i.id_departamento, 
+      i.nombre_inquilino, 
+      i.apellino_paterno_inquilino, 
+      i.apellino_materno_inquilino, 
+      i.correo_inquilino, 
+      i.codigo_inquilino, 
+      p.id_info_pagos,
+      p.id_condominio,
+      p.id_edificio,
+      p.total_pagado,
+      p.adeudo,
+      p.fecha_pago,
+      ac.id_edificio,
+      ac.cuota_base,
+      ac.cuota_extra
+    FROM inquilino i
+    LEFT JOIN infopagos p ON i.id_inquilino = p.id_inquilino
+    LEFT JOIN admin_cuotas ac ON p.id_condominio = ac.id_condominio
+    WHERE i.codigo_inquilino = ?
+  `;
+  connection.query(query, [codigo_inquilino], (error, results) => {
+    if (error) {
+      console.error(error);
+      res.status(500).send("Error al obtener al inquilino por su codigo");
+    } else {
+      const inquilino = results[0];
+      if (!inquilino) {
+        res.status(404).send("Ningun inquilino esta ligado a ese codigo");
+      } else {
+        if (inquilino.correo_inquilino === null) {
+          inquilino.correo_inquilino =
+            "No se proporciono un correo electronico";
+        }
+        if (inquilino.total_pagado === null) {
+          inquilino.total_pagado = "No se ha realizado ningun pago";
+        }
+        if (inquilino.adeudo === null) {
+          inquilino.adeudo = "No se tienen adeudos";
+        }
+        if (inquilino.fecha_pago === null) {
+          inquilino.fecha_pago = "No se ha realizado ningun pago aun";
+        }
+        if (inquilino.cuota_base === null) {
+          inquilino.cuota_base = "No hay cuotas ligadas al inquilino";
+        }
+        if (inquilino.cuota_extra === null) {
+          inquilino.cuota_extra = "No hay cuotas extra ligadas al inquilino";
+        }
+        if (inquilino.id_info_pagos === null) {
+          inquilino.id_info_pagos = "No hay identidicador de pagos";
+        }
+        if (inquilino.id_condominio === null) {
+          inquilino.id_condominio = "No hay identificador de condominio";
+        }
+        if (inquilino.id_edificio === null) {
+          inquilino.id_edificio = "No hay identificador de edificio";
+        }
+        res.json(inquilino);
+        console.log(inquilino);
+      }
+    }
+  });
+});
+
 app.get(`/api/getInquilinosByCondominio`, (req, res) => {
   const { id_condominio } = req.query;
   const query = `
@@ -1200,6 +1275,7 @@ app.get(`/api/getInfoPagos/:id_administrador`, (req, res) => {
   const sql = `
     SELECT
       c.nombre_condominio,
+      e.nombre_edificio,
       d.numero_departamento,
       p.total_pagado,
       p.adeudo,
@@ -1208,6 +1284,7 @@ app.get(`/api/getInfoPagos/:id_administrador`, (req, res) => {
     INNER JOIN inquilino i ON p.id_inquilino = i.id_inquilino
     INNER JOIN departamento d ON i.id_departamento = d.id_departamento
     INNER JOIN condominio c ON p.id_condominio = c.id_condominio
+    INNER JOIN edificio e ON p.id_edificio = e.id_edificio
     WHERE p.id_administrador = ?
   `;
 
@@ -1296,6 +1373,7 @@ app.get(`/api/getInfoPagosFiltrados/:id_administrador`, (req, res) => {
   let query = `
     SELECT
       c.nombre_condominio,
+      e.nombre_edificio,
       d.numero_departamento,
       p.total_pagado,
       p.adeudo,
@@ -1304,6 +1382,7 @@ app.get(`/api/getInfoPagosFiltrados/:id_administrador`, (req, res) => {
     INNER JOIN inquilino i ON p.id_inquilino = i.id_inquilino
     INNER JOIN departamento d ON i.id_departamento = d.id_departamento
     INNER JOIN condominio c ON p.id_condominio = c.id_condominio
+    INNER JOIN edificio e ON p.id_edificio = e.id_edificio
     WHERE p.id_administrador = ?
   `;
   let params = [req.params.id_administrador];
